@@ -15,6 +15,7 @@ namespace SysBot.Tests
             var hub = new PokeTradeHub<PK8>(new PokeTradeHubConfig());
             var info = new TradeQueueInfo<PK8>(hub);
             var queue = info.Hub.Queues.GetQueue(PokeRoutineType.LinkTrade);
+            var p1 = PokeTradeQueue<PK8>.TierFree;
 
             var t1 = GetTestTrade(info, 1);
             var t2 = GetTestTrade(info, 2);
@@ -24,21 +25,21 @@ namespace SysBot.Tests
             var executor = new MockExecutor(new PokeBotConfig());
 
             // Enqueue a bunch
-            var r1 = info.AddToTradeQueue(t1, t1.UserID);
+            var r1 = info.AddToTradeQueue(t1, t1.UserID, p1);
             r1.Should().Be(QueueResultAdd.Added);
 
-            var r2 = info.AddToTradeQueue(t2, t2.UserID);
+            var r2 = info.AddToTradeQueue(t2, t2.UserID, p1);
             r2.Should().Be(QueueResultAdd.Added);
 
-            var r3 = info.AddToTradeQueue(t3, t3.UserID);
+            var r3 = info.AddToTradeQueue(t3, t3.UserID, p1);
             r3.Should().Be(QueueResultAdd.Added);
 
             // Sudo add with the same ID
             var id = t1.UserID;
-            var sr = info.AddToTradeQueue(s, id);
+            var sr = info.AddToTradeQueue(s, id, p1);
             sr.Should().Be(QueueResultAdd.AlreadyInQueue);
 
-            sr = info.AddToTradeQueue(s, id, true);
+            sr = info.AddToTradeQueue(s, id, p1, true);
             sr.Should().Be(QueueResultAdd.Added);
 
             var dequeue = queue.TryDequeue(out var first, out uint priority);

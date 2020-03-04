@@ -111,7 +111,7 @@ namespace SysBot.Pokemon.Twitch
             var detail = new PokeTradeDetail<PK8>(pk8, trainer, notifier, tt, code: code);
             var trade = new TradeEntry<PK8>(detail, userID, type, name);
 
-            var added = Info.AddToTradeQueue(trade, userID, sudo);
+            var added = Info.AddToTradeQueue(trade, userID, PokeTradeQueue<PK8>.TierFree, sudo);
 
             if (added == QueueResultAdd.AlreadyInQueue)
             {

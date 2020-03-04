@@ -105,13 +105,14 @@ namespace SysBot.Pokemon.Discord
             var user = Context.User;
             var userID = user.Id;
             var name = user.Username;
+            var priority = user.EvaluatePriority();
 
             var trainer = new PokeTradeTrainerInfo(trainerName);
             var notifier = new DiscordTradeNotifier<PK8>(pk8, trainer, code, Context);
             var detail = new PokeTradeDetail<PK8>(pk8, trainer, notifier, PokeTradeType.Dudu, code: code);
             var trade = new TradeEntry<PK8>(detail, userID, type, name);
 
-            var added = Info.AddToTradeQueue(trade, userID, sudo);
+            var added = Info.AddToTradeQueue(trade, userID, priority, sudo);
 
             if (added == QueueResultAdd.AlreadyInQueue)
             {

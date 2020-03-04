@@ -40,6 +40,7 @@ namespace SysBot.Pokemon.Discord
             SysCordInstance.Self = this; // hack
             SysCordInstance.Manager = new DiscordManager(Hub.Config);
             AutoLegalityWrapper.EnsureInitialized(Hub.Config.Legality);
+            PriorityUtil.GetInitialCooldowns();
 
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {

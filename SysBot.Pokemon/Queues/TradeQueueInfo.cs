@@ -132,7 +132,7 @@ namespace SysBot.Pokemon
             }
         }
 
-        public QueueResultAdd AddToTradeQueue(TradeEntry<T> trade, ulong userID, bool sudo = false)
+        public QueueResultAdd AddToTradeQueue(TradeEntry<T> trade, ulong userID, uint priority, bool sudo = false)
         {
             lock (_sync)
             {
@@ -142,10 +142,10 @@ namespace SysBot.Pokemon
                 if (Hub.Config.Legality.ResetHOMETracker && trade.Trade.TradeData is IHomeTrack t)
                     t.Tracker = 0;
 
-                var priority = sudo ? PokeTradeQueue<PK8>.Tier1 : PokeTradeQueue<PK8>.TierFree;
+                var _priority = sudo ? PokeTradeQueue<PK8>.Tier1 : priority;
                 var queue = Hub.Queues.GetQueue(trade.Type);
 
-                queue.Enqueue(trade.Trade, priority);
+                queue.Enqueue(trade.Trade, _priority);
                 UsersInQueue.Add(trade);
 
                 trade.Trade.Notifier.OnFinish = _ => Remove(trade);

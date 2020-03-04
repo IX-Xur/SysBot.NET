@@ -62,6 +62,26 @@ namespace SysBot.Pokemon.Discord
                 await Context.User.SendMessageAsync(msg).ConfigureAwait(false);
         }
 
+        [Command("cooldownClear")]
+        [Alias("cc")]
+        [Summary("Clears the priority pass cooldown for the user")]
+        [RequireSudo]
+        public async Task ClearUserCooldown()
+        {
+            Context.Message.Author.ClearCooldown();
+            await ReplyAsync("User's Cooldown has been cleared.").ConfigureAwait(false);
+        }
+
+        [Command("cooldownClearAll")]
+        [Alias("cca")]
+        [Summary("Clears the priority pass cooldown for the user")]
+        [RequireSudo]
+        public async Task ClearAllCooldowns()
+        {
+            PriorityUtil.ClearAllCooldowns();
+            await ReplyAsync("All cooldowns have been cleared.").ConfigureAwait(false);
+        }
+
         private string ClearTrade()
         {
             var userID = Context.User.Id;

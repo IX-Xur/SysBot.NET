@@ -44,6 +44,12 @@ namespace SysBot.Pokemon
         [Category(Whitelists), Description("Users with this role are allowed to bypass command restrictions.")]
         public string RoleSudo { get; set; } = DefaultDisable;
 
+        [Category(Whitelists), Description("Comma separated, in-order priority Discord roles")]
+        public string PriorityRoles { get; set; } = DefaultDisable;
+
+        [Category(Whitelists), Description("Priority cooldown period in minutes (-1 for no cooldown)")]
+        public string PriorityCooldown { get; set; } = "60";
+
         // Operation
 
         [Category(Operation), Description("Users with these user IDs cannot use the bot.")]
