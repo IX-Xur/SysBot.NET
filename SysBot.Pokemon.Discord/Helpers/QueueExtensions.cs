@@ -58,6 +58,7 @@ namespace SysBot.Pokemon.Discord
             var user = Context.User;
             var userID = user.Id;
             var name = user.Username;
+            var priority = user.EvaluatePriority();
 
             var trainer = new PokeTradeTrainerInfo(trainerName);
             var notifier = new DiscordTradeNotifier<PK8>(pk8, trainer, code, Context);
@@ -66,11 +67,15 @@ namespace SysBot.Pokemon.Discord
 
             var hub = SysCordInstance.Self.Hub;
             var Info = hub.Queues.Info;
-            var added = Info.AddToTradeQueue(trade, userID, sudo);
+            var added = Info.AddToTradeQueue(trade, userID, priority, sudo);
 
             if (added == QueueResultAdd.AlreadyInQueue)
             {
                 msg = "Sorry, you are already in the queue.";
+                if (priority != 1 && priority != PokeTradeQueue<PK8>.TierFree)
+                {
+                    user.ClearCooldown();  // Clear cooldown if applied while already in queue, ignore if set previously
+                }
                 return false;
             }
 
