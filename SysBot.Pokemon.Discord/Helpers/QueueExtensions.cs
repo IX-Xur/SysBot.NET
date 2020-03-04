@@ -72,13 +72,10 @@ namespace SysBot.Pokemon.Discord
             if (added == QueueResultAdd.AlreadyInQueue)
             {
                 msg = "Sorry, you are already in the queue.";
-                if (priority != 1 && priority != PokeTradeQueue<PK8>.TierFree)
-                {
-                    user.ClearCooldown();  // Clear cooldown if applied while already in queue, ignore if set previously
-                }
                 return false;
             }
 
+            user.Timestamp();
             var position = Info.CheckPosition(userID, type);
             msg = $"Added {user.Mention} to the queue for trade type: {type}; unique ID: {detail.ID}. Your current position is: {position.Position}";
 

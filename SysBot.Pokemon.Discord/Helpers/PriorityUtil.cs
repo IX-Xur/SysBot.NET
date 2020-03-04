@@ -56,12 +56,13 @@ namespace SysBot.Pokemon.Discord
             
             if (cooldowns.ContainsKey(user.Id.ToString()) && CooldownPeriod != -1)  // Ignore if cooldown period is disabled
             {
-                TimeSpan timePassed = DateTime.Now.Subtract(DateTime.Parse(cooldowns[user.Id.ToString()]));
+                TimeSpan timePassed = CheckTimePassed(user);
                 if (!(timePassed.TotalMinutes > CooldownPeriod))
                 {
                     LogUtil.LogInfo("Cooldown Not Met!", "DiscordPriority");
                     return PokeTradeQueue<PK8>.TierFree;
-                } else
+                } 
+                else
                 {
                     LogUtil.LogInfo("Cooldown Removed!", "DiscordPriority");
                     cooldowns.Remove(user.Id.ToString());
@@ -73,7 +74,6 @@ namespace SysBot.Pokemon.Discord
                 if (((SocketGuildUser)user).Roles.Any(r => r.Name == role))
                 {
                     var priority = (uint)(Array.IndexOf(PriorityRoles, role) + 2);
-                    Timestamp(user);
                     LogUtil.LogInfo(string.Format("Assigning user {0} priority {1} from role {2}", user.Username, priority, role), "DiscordPriority");
                     return priority;
                 }
@@ -91,10 +91,25 @@ namespace SysBot.Pokemon.Discord
                 cooldowns.Add(user.Id.ToString(), DateTime.Now.ToString());
                 var lines = JsonConvert.SerializeObject(cooldowns, Formatting.Indented);
                 File.WriteAllText(CooldownPath, lines);
-            } else
+            } 
+            else
             {
                 LogUtil.LogError(string.Format("Error: User {0} is already on cooldown!", user.Username), "DiscordPriority");
             }
+        }
+
+        public static TimeSpan CheckTimePassed(this IUser user)
+        {
+            if (cooldowns.ContainsKey(user.Id.ToString()))
+            {
+                return DateTime.Now.Subtract(DateTime.Parse(cooldowns[user.Id.ToString()]));
+            } 
+            else
+            {
+                LogUtil.LogError("Error: User does not have a cooldown!", "DiscordPriority");
+                return new TimeSpan();
+            }
+            
         }
 
         public static void ClearCooldown(this IUser user)
@@ -111,6 +126,18 @@ namespace SysBot.Pokemon.Discord
             cooldowns.Clear();
         }
 
-
+        public static void CheckUserCooldown(this IUser user, out string msg)
+        {
+            if (cooldowns.ContainsKey(user.Id.ToString()))
+            {
+                var timePassed = CheckTimePassed(user).TotalMinutes;
+                var timeLeft = Math.Max(0, CooldownPeriod - timePassed);  // If time left is negative, set to 0
+                msg = string.Format("You last traded {0:F2} minutes ago! Your priority cooldown has {1:F2} minutes left!", timePassed, timeLeft);
+            }
+            else
+            {
+                msg = "You do not have a priority cooldown!";
+            }
+        }
     }
 }
