@@ -66,7 +66,7 @@ namespace SysBot.Pokemon.Twitch
                 try
                 {
                     var file = b.Connection.IP;
-                    var name = $"({detail.ID}) {detail.Trainer.TrainerName}";
+                    var name = $"(ID {detail.ID}) {detail.Trainer.TrainerName}";
                     File.WriteAllText($"{file}.txt", name);
 
                     var next = Hub.Queues.Info.GetUserList().Take(Settings.OnDeckCount);
@@ -119,7 +119,15 @@ namespace SysBot.Pokemon.Twitch
                 return false;
             }
 
-            msg = $"Added {name} to the queue. Your current position is: {Info.CheckPosition(userID, type).Position}";
+            var position = Info.CheckPosition(userID, type);
+            msg = $"Added {name} to the queue for trade type: {type}. Your current position is: {position.Position}; unique ID: {detail.ID}";
+
+            var botct = Info.Hub.Bots.Count;
+            if (position.Position > botct)
+            {
+                var eta = Info.Hub.Config.Queues.EstimateDelay(position.Position, botct);
+                msg += $". Trades usually take at least a minute, so please be ready in around {eta:F1} minutes.";
+            }
             return true;
         }
 
