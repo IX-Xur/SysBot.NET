@@ -48,7 +48,10 @@ namespace SysBot.Pokemon
         public string PriorityRoles { get; set; } = DefaultDisable;
 
         [Category(Whitelists), Description("Priority cooldown period in minutes (-1 for no cooldown)")]
-        public string PriorityCooldown { get; set; } = "60";
+        public int DefaultPriorityCooldown { get; set; } = 60;
+
+        [Category(Whitelists), Description("Comma-separated cooldowns for priority roles")]
+        public string PriorityCooldowns { get; set; } = DefaultDisable;
 
         // Operation
 

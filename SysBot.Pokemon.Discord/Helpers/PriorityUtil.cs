@@ -15,19 +15,8 @@ namespace SysBot.Pokemon.Discord
         private static readonly string CooldownPath = Path.Combine(Directory.GetCurrentDirectory(), "cooldowns.json");
         private static Dictionary<string, string> cooldowns = new Dictionary<string, string>();
         private static readonly string[] PriorityRoles = SysCordInstance.Manager.Config.Discord.PriorityRoles.Split(new[] { ", ", "," }, StringSplitOptions.RemoveEmptyEntries);
-        private static readonly int CooldownPeriod = GetCooldownPeriod();
-
-        private static int GetCooldownPeriod()
-        {
-            try
-            {
-                return int.Parse(SysCordInstance.Manager.Config.Discord.PriorityCooldown);
-            } catch (FormatException)
-            {
-                LogUtil.LogInfo("Cooldown period was not a number!", "DiscordPriority");
-                return 60;
-            }
-        }
+        private static readonly string[] PriorityCooldowns = SysCordInstance.Manager.Config.Discord.PriorityCooldowns.Split(new[] { ", ", "," }, StringSplitOptions.RemoveEmptyEntries);
+        private static readonly int DefaultCooldownPeriod = SysCordInstance.Manager.Config.Discord.DefaultPriorityCooldown;
 
         public static void GetInitialCooldowns()
         {
@@ -38,6 +27,45 @@ namespace SysBot.Pokemon.Discord
                 cooldowns = JsonConvert.DeserializeObject<Dictionary<string,string>>(lines);
 
             }
+        }
+
+        private static int GetCooldownForRole(string role)
+        {
+            try
+            {
+                return int.TryParse(PriorityCooldowns[Array.IndexOf(PriorityRoles, role)], out int result) ? result : DefaultCooldownPeriod;
+            } catch (IndexOutOfRangeException)
+            {
+                LogUtil.LogError("Roles and Cooldowns do not match!", "DiscordPriority");
+                return DefaultCooldownPeriod;
+            }
+        }
+
+        private static string GetHighestRole(IUser user)
+        {
+            foreach (string role in PriorityRoles)
+            {
+                if (((SocketGuildUser)user).Roles.Any(r => r.Name == role))
+                {
+                    return role;
+                }
+            }
+            return "";
+        }
+
+        private static uint PriorityHelper(IUser user, out string highestRole, out bool hasPriority, out int cooldownPeriod)
+        {
+            highestRole = GetHighestRole(user);
+            hasPriority = !highestRole.Equals("");
+            cooldownPeriod = hasPriority ? GetCooldownForRole(highestRole) : DefaultCooldownPeriod;
+            return hasPriority ? (uint)Array.IndexOf(PriorityRoles, highestRole) + 2 : PokeTradeQueue<PK8>.TierFree;
+        }
+
+        private static int PriorityHelper(IUser user)
+        {
+            var highestRole = GetHighestRole(user);
+            var hasPriority = !highestRole.Equals("");
+            return hasPriority ? GetCooldownForRole(highestRole) : DefaultCooldownPeriod;
         }
 
         public static uint EvaluatePriority(this IUser user)
@@ -53,6 +81,8 @@ namespace SysBot.Pokemon.Discord
                 LogUtil.LogInfo("Priority Roles Disabled!", "DiscordPriority");
                 return PokeTradeQueue<PK8>.TierFree;
             }
+
+            var priority = PriorityHelper(user, out string highestRole, out bool hasPriority, out int CooldownPeriod);
             
             if (cooldowns.ContainsKey(user.Id.ToString()) && CooldownPeriod != -1)  // Ignore if cooldown period is disabled
             {
@@ -69,18 +99,15 @@ namespace SysBot.Pokemon.Discord
                 }
             }
 
-            foreach (string role in PriorityRoles)
+            if (hasPriority)
             {
-                if (((SocketGuildUser)user).Roles.Any(r => r.Name == role))
-                {
-                    var priority = (uint)(Array.IndexOf(PriorityRoles, role) + 2);
-                    LogUtil.LogInfo(string.Format("Assigning user {0} priority {1} from role {2}", user.Username, priority, role), "DiscordPriority");
-                    return priority;
-                }
+                LogUtil.LogInfo(string.Format("Assigning user {0} priority {1} from role {2}", user.Username, priority, highestRole), "DiscordPriority");
+            } else
+            {
+                LogUtil.LogInfo(string.Format("User {0} does not have a priority role", user.Username), "DiscordPriority");
             }
 
-            LogUtil.LogInfo(string.Format("User {0} does not have a priority role", user.Username), "DiscordPriority");
-            return PokeTradeQueue<PK8>.TierFree;
+            return priority;
         }
 
         public static void Timestamp(this IUser user)
@@ -130,6 +157,7 @@ namespace SysBot.Pokemon.Discord
         {
             if (cooldowns.ContainsKey(user.Id.ToString()))
             {
+                var CooldownPeriod = PriorityHelper(user);
                 var timePassed = CheckTimePassed(user).TotalMinutes;
                 var timeLeft = Math.Max(0, CooldownPeriod - timePassed);  // If time left is negative, set to 0
                 msg = string.Format("You last traded {0:F2} minutes ago! Your priority cooldown has {1:F2} minutes left!", timePassed, timeLeft);
