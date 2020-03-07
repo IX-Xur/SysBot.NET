@@ -22,7 +22,7 @@ namespace SysBot.Pokemon
         public string Channel { get; set; } = string.Empty;
 
         [Category(Startup), Description("Bot Command Prefix")]
-        public string CommandPrefix { get; set; } = "$";
+        public char CommandPrefix { get; set; } = '$';
 
         [Category(Operation), Description("Message sent when the Barrier is released.")]
         public string MessageStart { get; set; } = string.Empty;
@@ -49,6 +49,18 @@ namespace SysBot.Pokemon
 
         [Category(Operation), Description("Amount of users to show in the on-deck list.")]
         public int OnDeckCount { get; set; } = 5;
+
+        [Category(Operation), Description("Amount of on-deck users to skip at the top. If you want to hide people being processed, set this to your amount of consoles.")]
+        public int OnDeckCountSkip { get; set; } = 0;
+
+        [Category(Operation), Description("Separator to split the on-deck list users.")]
+        public string OnDeckSeparator { get; set; } = "\n";
+
+        [Category(Operation), Description("When enabled, the bot will process commands sent to the channel.")]
+        public bool AllowCommandsViaChannel { get; set; } = true;
+
+        [Category(Operation), Description("When enabled, the bot will allow users to send command via whisper (bypasses slow mode)")]
+        public bool AllowCommandsViaWhisper { get; set; }
 
         public bool IsSudo(string username)
         {

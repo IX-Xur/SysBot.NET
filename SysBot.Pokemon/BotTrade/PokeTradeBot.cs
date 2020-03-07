@@ -133,6 +133,9 @@ namespace SysBot.Pokemon
             UpdateBarrier(poke.IsSynchronized);
             poke.TradeInitialize(this);
 
+            if (await CheckIfSoftBanned(token).ConfigureAwait(false))
+               await Unban(token).ConfigureAwait(false);
+
             var pkm = poke.TradeData;
             if (pkm.Species != 0)
                 await SetBoxPokemon(pkm, InjectBox, InjectSlot, token, sav).ConfigureAwait(false);
@@ -259,12 +262,13 @@ namespace SysBot.Pokemon
                 // Inject the shown Pokémon.
                 var clone = (PK8)pk.Clone();
 
-                poke.SendNotification(this, clone, "Here's what you showed me!");
+                if (Hub.Config.Discord.ReturnPK8s)
+                    poke.SendNotification(this, clone, "Here's what you showed me!");
 
                 var la = new LegalityAnalysis(clone);
                 if (!la.Valid && Hub.Config.VerifyLegality)
                 {
-                    Connection.Log("Clone request has detected an invalid Pokémon.");
+                    Connection.Log($"Clone request has detected an invalid Pokémon: {(Species)clone.Species}");
                     if (DumpSetting.Dump)
                         DumpPokemon(DumpSetting.DumpFolder, "hacked", clone);
 
@@ -420,6 +424,8 @@ namespace SysBot.Pokemon
             // 4. Repeat
 
             // Inject to b1s1
+            if (await CheckIfSoftBanned(token).ConfigureAwait(false))
+                await Unban(token).ConfigureAwait(false);
 
             Connection.Log("Starting next Surprise Trade. Getting data...");
             await SetBoxPokemon(pkm, InjectBox, InjectSlot, token, sav).ConfigureAwait(false);
