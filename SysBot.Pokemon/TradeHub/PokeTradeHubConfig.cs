@@ -46,7 +46,7 @@ namespace SysBot.Pokemon
 
         [Category(Bots)]
         [TypeConverter(typeof(ExpandableObjectConverter))]
-        public DuduSettings Dudu { get; set; } = new DuduSettings();
+        public SeedCheckSettings SeedCheck { get; set; } = new SeedCheckSettings();
 
         [Category(Bots)]
         [TypeConverter(typeof(ExpandableObjectConverter))]
@@ -69,6 +69,10 @@ namespace SysBot.Pokemon
         [Category(Integration)]
         [TypeConverter(typeof(ExpandableObjectConverter))]
         public TwitchSettings Twitch { get; set; } = new TwitchSettings();
+
+        [Category(Integration)]
+        [TypeConverter(typeof(ExpandableObjectConverter))]
+        public StreamSettings Stream { get; set; } = new StreamSettings();
 
 #if DEBUG
         // Debug

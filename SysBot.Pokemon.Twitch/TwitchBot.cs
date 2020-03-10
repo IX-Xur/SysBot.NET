@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TwitchLib.Client;
@@ -54,6 +53,7 @@ namespace SysBot.Pokemon.Twitch
             client.OnNewSubscriber += Client_OnNewSubscriber;
             client.OnConnected += Client_OnConnected;
             client.OnDisconnected += Client_OnDisconnected;
+            client.OnLeftChannel += Client_OnLeftChannel;
 
             client.OnMessageThrottled += (_, e)
                 => LogUtil.LogError($"Message Throttled: {e.Message}", "TwitchBot");
@@ -67,34 +67,10 @@ namespace SysBot.Pokemon.Twitch
 
             client.Connect();
 
-            if (settings.GenerateAssets)
-                AddAssetGeneration();
-
             EchoUtil.Forwarders.Add(msg => client.SendMessage(Channel, msg));
-            Hub.Queues.Forwarders.Add((bot, detail) => client.SendMessage(Channel, $"{bot.Connection.Name} is now trading (ID {detail.ID}) {detail.Trainer.TrainerName}"));
-        }
 
-        private void AddAssetGeneration()
-        {
-            void Create(PokeTradeBot b, PokeTradeDetail<PK8> detail)
-            {
-                try
-                {
-                    var file = b.Connection.IP;
-                    var name = $"(ID {detail.ID}) {detail.Trainer.TrainerName}";
-                    File.WriteAllText($"{file}.txt", name);
-
-                    var next = Hub.Queues.Info.GetUserList("(ID {0}) - {3}");
-                    next = next.Skip(Settings.OnDeckCountSkip).Take(Settings.OnDeckCount); // filter down
-                    var separator = Hub.Config.Twitch.OnDeckSeparator;
-                    File.WriteAllText("ondeck.txt", string.Join(separator, next));
-                }
-                catch (Exception e)
-                {
-                    LogUtil.LogError(e.Message, "TwitchBot");
-                }
-            }
-            Info.Hub.Queues.Forwarders.Add(Create);
+            // Turn on if verified
+            // Hub.Queues.Forwarders.Add((bot, detail) => client.SendMessage(Channel, $"{bot.Connection.Name} is now trading (ID {detail.ID}) {detail.Trainer.TrainerName}"));
         }
 
         public void StartingDistribution(string message)
@@ -124,7 +100,7 @@ namespace SysBot.Pokemon.Twitch
 
             var trainer = new PokeTradeTrainerInfo(name);
             var notifier = new TwitchTradeNotifier<PK8>(pk8, trainer, code, e.WhisperMessage.Username, client, Channel);
-            var tt = type == PokeRoutineType.DuduBot ? PokeTradeType.Dudu : PokeTradeType.Specific;
+            var tt = type == PokeRoutineType.SeedCheck ? PokeTradeType.Seed : PokeTradeType.Specific;
             var detail = new PokeTradeDetail<PK8>(pk8, trainer, notifier, tt, code: code);
             var trade = new TradeEntry<PK8>(detail, userID, type, name);
 
@@ -161,6 +137,8 @@ namespace SysBot.Pokemon.Twitch
         private void Client_OnDisconnected(object sender, OnDisconnectedEventArgs e)
         {
             LogUtil.LogText($"[{client.TwitchUsername}] - Disconnected.");
+            while (!client.IsConnected)
+                client.Reconnect();
         }
 
         private void Client_OnJoinedChannel(object sender, OnJoinedChannelArgs e)
@@ -171,7 +149,15 @@ namespace SysBot.Pokemon.Twitch
 
         private void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
         {
-            LogUtil.LogText($"[{client.TwitchUsername}] - @{e.ChatMessage.Username}: {e.ChatMessage.Message}");
+            LogUtil.LogText($"[{client.TwitchUsername}] - Received message: @{e.ChatMessage.Username}: {e.ChatMessage.Message}");
+            if (client.JoinedChannels.Count == 0)
+                client.JoinChannel(e.ChatMessage.Channel);
+        }
+
+        private void Client_OnLeftChannel(object sender, OnLeftChannelArgs e)
+        {
+            LogUtil.LogText($"[{client.TwitchUsername}] - Left channel {e.Channel}");
+            client.JoinChannel(e.Channel);
         }
 
         private void Client_OnChatCommandReceived(object sender, OnChatCommandReceivedArgs e)
