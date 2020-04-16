@@ -1,22 +1,26 @@
 ﻿using PKHeX.Core;
 using System.Threading;
 using System.Threading.Tasks;
+using SysBot.Base;
 using static SysBot.Base.SwitchButton;
+using static SysBot.Pokemon.PokeDataOffsets;
 
 namespace SysBot.Pokemon
 {
     public class RaidBot : PokeRoutineExecutor
     {
+        private readonly PokeTradeHub<PK8> Hub;
         private readonly BotCompleteCounts Counts;
         private readonly RaidSettings Settings;
         public readonly IDumper Dump;
         private readonly bool ldn;
 
-        public RaidBot(PokeBotConfig cfg, RaidSettings raid, IDumper folder, BotCompleteCounts counts) : base(cfg)
+        public RaidBot(PokeBotConfig cfg, PokeTradeHub<PK8> hub) : base(cfg)
         {
-            Settings = raid;
-            Dump = folder;
-            Counts = counts;
+            Hub = hub;
+            Settings = Hub.Config.Raid;
+            Dump = Hub.Config.Folder;
+            Counts = Hub.Counts;
             ldn = Settings.UseLdnMitm;
         }
 
@@ -24,26 +28,30 @@ namespace SysBot.Pokemon
 
         protected override async Task MainLoop(CancellationToken token)
         {
-            Connection.Log("Identifying trainer data of the host console.");
+            Log("Identifying trainer data of the host console.");
             var sav = await IdentifyTrainer(token).ConfigureAwait(false);
 
-            Connection.Log("Starting main RaidBot loop.");
+            var originalTextSpeed = await EnsureTextSpeedFast(token).ConfigureAwait(false);
+
+            Log("Starting main RaidBot loop.");
             while (!token.IsCancellationRequested && Config.NextRoutineType == PokeRoutineType.RaidBot)
             {
-                int code = Settings.RaidCode;
+                Config.IterateNextRoutine();
+                int code = Settings.GetRandomRaidCode();
                 bool airplane = await HostRaidAsync(sav, code, token).ConfigureAwait(false);
                 await ResetGameAsync(airplane, token).ConfigureAwait(false);
 
                 encounterCount++;
-                Connection.Log($"Raid host {encounterCount} finished.");
+                Log($"Raid host {encounterCount} finished.");
                 Counts.AddCompletedRaids();
             }
+            await SetTextSpeed(originalTextSpeed, token).ConfigureAwait(false);
         }
 
         private async Task<bool> HostRaidAsync(SAV8SWSH sav, int code, CancellationToken token)
         {
             // Connect to Y-Comm
-            await EnsureConnectedToYComm(token).ConfigureAwait(false);
+            //await EnsureConnectedToYComm(Hub.Config, token).ConfigureAwait(false);
 
             // Press A and stall out a bit for the loading
             await Click(A, 5000, token).ConfigureAwait(false);
@@ -53,6 +61,7 @@ namespace SysBot.Pokemon
                 // Set Link code
                 await Click(PLUS, 1000, token).ConfigureAwait(false);
                 await EnterTradeCode(code, token).ConfigureAwait(false);
+                EchoUtil.Echo($"Raid code is {code}.");
 
                 // Raid barrier here maybe?
                 await Click(PLUS, 2_000, token).ConfigureAwait(false);
@@ -63,12 +72,13 @@ namespace SysBot.Pokemon
             await Click(A, 5000, token).ConfigureAwait(false);
             await Click(DUP, 1000, token).ConfigureAwait(false);
             await Click(A, 1000, token).ConfigureAwait(false);
+            await ClearRaidTrainerName(token).ConfigureAwait(false);
 
             // Use Offset to actually calculate this value and press A
             var timetowait = 3 * 60 * 1000;
             while (timetowait > 0)
             {
-                bool result = await CheckIfQueueFullAsync().ConfigureAwait(false);
+                bool result = await GetIsRaidPartyIsFullAsync(token).ConfigureAwait(false);
                 if (result)
                     break;
 
@@ -76,28 +86,40 @@ namespace SysBot.Pokemon
                 timetowait -= 1000;
             }
 
+            await Click(A, 500, token).ConfigureAwait(false);
             if (timetowait > 0)
             {
-                Connection.Log("All participants have joined.");
-                await Click(A, 3000, token).ConfigureAwait(false);
+                Log("All participants have joined.");
+                while (!await IsInBattle(token).ConfigureAwait(false))
+                    await Click(A, 500, token).ConfigureAwait(false);
             }
             else
             {
-                Connection.Log("Not all participants have joined. Continuing anyway!");
-                await Click(A, 3000, token).ConfigureAwait(false);
+                Log("Not all participants have joined. Continuing anyway!");
+                while (!await IsInBattle(token).ConfigureAwait(false))
+                    await Click(A, 500, token).ConfigureAwait(false);
             }
 
-            Connection.Log($"Hosting raid as {sav.OT} with code: {code:0000}.");
-            await Task.Delay(10_000, token).ConfigureAwait(false);
+            Log($"Hosting raid as {sav.OT} with code: {code:0000}.");
+            await Task.Delay(5_000, token).ConfigureAwait(false);
 
             return false;
         }
 
-        // Check if queue is full and set true if it is
-        private async Task<bool> CheckIfQueueFullAsync()
+        private async Task ClearRaidTrainerName(CancellationToken token)
         {
-            await Task.Delay(1).ConfigureAwait(false);
-            return false;
+            byte[] EmptyCharacter = new byte[1];
+            await Connection.WriteBytesAsync(EmptyCharacter, RaidTrainer2Offset, token).ConfigureAwait(false);
+            await Connection.WriteBytesAsync(EmptyCharacter, RaidTrainer3Offset, token).ConfigureAwait(false);
+            await Connection.WriteBytesAsync(EmptyCharacter, RaidTrainer4Offset, token).ConfigureAwait(false);
+        }
+
+        private async Task<bool> GetIsRaidPartyIsFullAsync(CancellationToken token)
+        {
+            var P2 = await Connection.ReadBytesAsync(RaidTrainer2Offset, 1, token).ConfigureAwait(false);
+            var P3 = await Connection.ReadBytesAsync(RaidTrainer3Offset, 1, token).ConfigureAwait(false);
+            var P4 = await Connection.ReadBytesAsync(RaidTrainer4Offset, 1, token).ConfigureAwait(false);
+            return (P2[0] != 0) && (P3[0] != 0) && (P4[0] != 0);
         }
 
         private async Task ResetGameAsync(bool airplane, CancellationToken token)
@@ -112,17 +134,17 @@ namespace SysBot.Pokemon
 
         private async Task ResetRaidCloseGameLDN(CancellationToken token)
         {
-            Connection.Log("Resetting raid by restarting the game");
+            Log("Resetting raid by restarting the game");
             // Close out of the game
             await Click(HOME, 3_000, token).ConfigureAwait(false);
             await Click(X, 1_000, token).ConfigureAwait(false);
             await Click(A, 5_000, token).ConfigureAwait(false); // Closing software prompt
-            Connection.Log("Closed out of the game!");
+            Log("Closed out of the game!");
 
             // Open game and select profile
             await Click(A, 1_000, token).ConfigureAwait(false);
             await Click(A, 1_000, token).ConfigureAwait(false);
-            Connection.Log("Restarting the game!");
+            Log("Restarting the game!");
 
             // Switch Logo lag, skip cutscene, game load screen
             await Task.Delay(25_000, token).ConfigureAwait(false);
@@ -134,16 +156,16 @@ namespace SysBot.Pokemon
                 await Task.Delay(1_000, token).ConfigureAwait(false);
             }
 
-            Connection.Log("Back in the overworld!");
+            Log("Back in the overworld!");
 
             // Reconnect to ycomm.
-            await EnsureConnectedToYComm(token).ConfigureAwait(false);
-            Connection.Log("Reconnected to Y-Comm!");
+            await EnsureConnectedToYComm(Hub.Config, token).ConfigureAwait(false);
+            Log("Reconnected to Y-Comm!");
         }
 
         private async Task ResetRaidAirplaneLDN(CancellationToken token)
         {
-            Connection.Log("Resetting raid using Airplane Mode method");
+            Log("Resetting raid using Airplane Mode method");
             // Airplane mode method (only works when you connect with someone but faster)
             // Need to test if ldn_mitm crashes
             // Side menu
@@ -157,7 +179,7 @@ namespace SysBot.Pokemon
             await Click(A, 1_200, token).ConfigureAwait(false);
             await Click(A, 1_200, token).ConfigureAwait(false);
             await Click(B, 1_200, token).ConfigureAwait(false);
-            Connection.Log("Toggled Airplane Mode!");
+            Log("Toggled Airplane Mode!");
 
             // Press OK on the error
             await Click(A, 1_200, token).ConfigureAwait(false);
@@ -166,11 +188,11 @@ namespace SysBot.Pokemon
             {
                 await Task.Delay(1_000, token).ConfigureAwait(false);
             }
-            Connection.Log("Back in the overworld!");
+            Log("Back in the overworld!");
 
             // Reconnect to ycomm.
-            await EnsureConnectedToYComm(token).ConfigureAwait(false);
-            Connection.Log("Reconnected to Y-Comm!");
+            await EnsureConnectedToYComm(Hub.Config, token).ConfigureAwait(false);
+            Log("Reconnected to Y-Comm!");
         }
 
         private async Task ResetRaidCloseGame(CancellationToken token)

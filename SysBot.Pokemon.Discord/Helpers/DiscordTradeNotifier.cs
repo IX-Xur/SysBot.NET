@@ -59,7 +59,7 @@ namespace SysBot.Pokemon.Discord
 
         public void SendNotification(PokeRoutineExecutor routine, PokeTradeDetail<T> info, PokeTradeSummary message)
         {
-            if (message.ExtraInfo is Z3SeedResult r)
+            if (message.ExtraInfo is SeedSearchResult r)
             {
                 SendNotificationZ3(r);
                 return;
@@ -73,11 +73,11 @@ namespace SysBot.Pokemon.Discord
 
         public void SendNotification(PokeRoutineExecutor routine, PokeTradeDetail<T> info, T result, string message)
         {
-            if (result.Species != 0 && Hub.Config.Discord.ReturnPK8s)
+            if (result.Species != 0 && (Hub.Config.Discord.ReturnPK8s || info.Type == PokeTradeType.Dump))
                 Context.User.SendPKMAsync(result, message).ConfigureAwait(false);
         }
 
-        private void SendNotificationZ3(Z3SeedResult r)
+        private void SendNotificationZ3(SeedSearchResult r)
         {
             var type = r.GetShinyType();
             var lines = r.ToString();

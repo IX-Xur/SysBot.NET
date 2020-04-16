@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +19,18 @@ namespace SysBot.Base
             Connection = new SwitchConnectionAsync(cfg.IP, cfg.Port);
         }
 
+        public string LastLogged { get; private set; } = "Not Started";
+        public DateTime LastTime { get; private set; } = DateTime.Now;
+
+        protected void ReportStatus() => LastTime = DateTime.Now;
+
+        public void Log(string message)
+        {
+            Connection.Log(message);
+            LastLogged = message;
+            LastTime = DateTime.Now;
+        }
+
         /// <summary>
         /// Connects to the console, then runs the bot.
         /// </summary>
@@ -25,13 +38,14 @@ namespace SysBot.Base
         public async Task RunAsync(CancellationToken token)
         {
             Connection.Connect();
-            Connection.Log("Initializing connection with console...");
+            Log("Initializing connection with console...");
             await EchoCommands(false, token).ConfigureAwait(false);
             await MainLoop(token).ConfigureAwait(false);
             Connection.Disconnect();
         }
 
         protected abstract Task MainLoop(CancellationToken token);
+        public abstract void SoftStop();
 
         public async Task Click(SwitchButton b, int delay, CancellationToken token)
         {

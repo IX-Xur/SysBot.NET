@@ -10,6 +10,8 @@ namespace SysBot.Pokemon
         private int CompletedTrades;
         private int CompletedEggs;
         private int CompletedFossils;
+        private int CompletedEncounters;
+        private int CompletedLegends;
         private int CompletedSeedChecks;
         private int CompletedSurprise;
         private int CompletedDistribution;
@@ -20,15 +22,17 @@ namespace SysBot.Pokemon
         public BotCompleteCounts(CountSettings config)
         {
             Config = config;
-            ReloadCounts();
+            LoadCountsFromConfig();
         }
 
-        public void ReloadCounts()
+        public void LoadCountsFromConfig()
         {
             CompletedTrades = Config.CompletedTrades;
             CompletedEggs = Config.CompletedEggs;
-            CompletedSeedChecks = Config.CompletedSeedChecks;
             CompletedFossils = Config.CompletedFossils;
+            CompletedEncounters = Config.CompletedEncounters;
+            CompletedLegends = Config.CompletedLegends;
+            CompletedSeedChecks = Config.CompletedSeedChecks;
             CompletedSurprise = Config.CompletedSurprise;
             CompletedDistribution = Config.CompletedDistribution;
             CompletedClones = Config.CompletedClones;
@@ -52,6 +56,17 @@ namespace SysBot.Pokemon
         {
             Interlocked.Increment(ref CompletedFossils);
             Config.CompletedFossils = CompletedFossils;
+        }
+
+        public void AddCompletedEncounters()
+        {
+            Interlocked.Increment(ref CompletedEncounters);
+            Config.CompletedEncounters = CompletedEncounters;
+        }
+        public void AddCompletedLegends()
+        {
+            Interlocked.Increment(ref CompletedLegends);
+            Config.CompletedLegends = CompletedLegends;
         }
 
         public void AddCompletedSeedCheck()
@@ -110,6 +125,10 @@ namespace SysBot.Pokemon
                 yield return $"Completed Raids: {CompletedRaids}";
             if (CompletedFossils != 0)
                 yield return $"Completed Fossils: {CompletedFossils}";
+            if (CompletedEncounters != 0)
+                yield return $"Wild Encounters: {CompletedEncounters}";
+            if (CompletedLegends != 0)
+                yield return $"Legendary Encounters: {CompletedLegends}";
         }
     }
 }

@@ -18,6 +18,7 @@ namespace SysBot.Pokemon.Discord
         public static SysCord Self;
         public static DiscordManager Manager;
         public static DiscordSettings Settings => Self.Hub.Config.Discord;
+        public static BotRunner<PokeBotConfig> Runner;
 #pragma warning restore CS8618 // Non-nullable field is uninitialized. Consider declaring as nullable.
     }
 
@@ -119,6 +120,10 @@ namespace SysBot.Pokemon.Discord
             // Login and connect.
             await _client.LoginAsync(TokenType.Bot, apiToken).ConfigureAwait(false);
             await _client.StartAsync().ConfigureAwait(false);
+
+            // Restore Echoes
+            await Task.Delay(5_000, token).ConfigureAwait(false);
+            EchoModule.RestoreChannels(_client);
 
             // Restore Logging
             await Task.Delay(5_000, token).ConfigureAwait(false);
